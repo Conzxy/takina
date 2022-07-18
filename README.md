@@ -38,9 +38,21 @@ takina::AddSection("Section title2");
 
 ### 添加命令行选项
 
-`takina`支持`长选项(long option)`和`短选项(short option)`，而后者是可选(optional)的。同时，选项参数支持无参(unary)，单参(single)，固定个数参数(fixed number)，多参(multiple)，支持的参数类型有`字符串`，`整型`，`浮点数`。<br>
-在c++中分别用`std::string`，`int`(我认为`int`够用了)，`double`表示
-其中，`help`是内置的长选项，help没有短选项，我认为`-h`留给别的选项更好。
+`takina`支持`长选项(long option)`和`短选项(short option)`，前者是**必须的(required)**，而后者是*可选(optional)*的。
+表示无短选项用空字符串即可。
+```cpp
+takina::AddOption({"", "long-option", ...}, ...);
+```
+同时，选项参数支持以下格式：
+* 无参(unary)
+* 单参(single)
+* 固定个数参数(fixed number)
+* 多参(multiple)
+
+而支持的参数类型有`字符串`，`整型`，`浮点数`。<br>
+在`C++`中分别用`std::string`，`int`(我认为`int`够用了)，`double`表示。
+
+其中，`help`是内置的长选项，help没有短选项，因为我认为`-h`留给别的选项更好。
 
 #### 无参
 
@@ -51,6 +63,7 @@ takina::AddOption({"short-option", "long-option", "description"}, &has_option);
 ```
 
 #### 单参:
+只接受一个实参。
 ```cpp
 std::string param;
 // OR int param;
@@ -59,12 +72,15 @@ takina::AddOption({"short-option", "long-option", "description"}, &param);
 ```
 
 #### 多参
+接受不定个数的实参。
+如果数目固定，用下面这种参数格式。
 ```cpp
 takina::MultiParams<std::string> str_params;
 takina::AddOption({...}, &str_params);
 ```
 
 #### 固定个数的参数
+接受固定个数的实参。
 ```cpp
 int params[2];
 takina::AddOption({...}, params, 2);
