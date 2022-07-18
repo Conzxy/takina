@@ -35,6 +35,8 @@ takina::AddSection("Section title2");
 ```
 注意`AddSection()`是调用位置相关的(call-position-dependent)，因此只有之后设置的选项属于该节。
 
+效果可以看最下面的help信息的输出。
+
 
 ### 添加命令行选项
 
@@ -102,7 +104,7 @@ if (success) {
 ## Example/Test
 在项目根目录中有一个测试文件，可以编译并运行。
 ```shell
-g++ -o takina_test takina_test.cc -I...
+g++ -o takina_test takina_test.cc
 ```
 
 ## Run
