@@ -39,9 +39,10 @@ struct OptionParameter {
 
 // Use aggregation initialization to create a OptionDescription object
 struct OptionDescption {
-  std::string sopt; // short option
-  std::string lopt; // long option
-  std::string desc; // description of option
+  std::string sopt;       // short option
+  std::string lopt;       // long option
+  std::string desc;       // description of option
+  std::string param_name; // name of parameters
 };
 
 using OptDesc = OptionDescption;
@@ -323,25 +324,45 @@ inline void _GenHelp() {
   help = usage;
   help += description;
 
-  int longest_long_opt_length = 0;
   int longest_short_opt_length = 0; 
+  int longest_long_opt_param_name_length = 0;
 
-  for (auto const& opt_param : long_param_map) {
-    longest_long_opt_length = TAKINA_MAX(longest_long_opt_length, (int)opt_param.first.size());
-  }
-
-  for (auto const& opt_param : short_param_map) {
-    longest_short_opt_length = TAKINA_MAX(longest_short_opt_length, (int)opt_param.first.size());
+  if (!sections.empty()) {
+    for (auto const& section_opt : section_opt_map) {
+      auto& options = section_opt.second;
+      for (auto const& option : options) {
+        longest_long_opt_param_name_length = TAKINA_MAX(longest_long_opt_param_name_length, 
+                                                        (int)(option.param_name.size()+option.lopt.size()));
+        longest_short_opt_length = TAKINA_MAX(longest_short_opt_length, (int)option.sopt.size());
+      }
+    }
+  } else {
+    for (auto const& option : options) {
+      longest_long_opt_param_name_length = TAKINA_MAX(longest_long_opt_param_name_length, 
+                                                      (int)(option.param_name.size()+option.lopt.size()));
+      longest_short_opt_length = TAKINA_MAX(longest_short_opt_length, (int)option.sopt.size());
+    }
   }
 
 #define _PUT_OPTIONS(_opts) \
   char buf[4096]; \
+  std::string lopt_param; \
+  lopt_param.reserve(longest_long_opt_param_name_length+1); \
   for (auto const& opt : _opts) { \
+    std::string format; \
     if (opt.sopt.empty()) { \
-      ::snprintf(buf, sizeof buf, " %-*s  --%-*s  %s\n", longest_short_opt_length, opt.sopt.c_str(), longest_long_opt_length, opt.lopt.c_str(), opt.desc.c_str()); \
+      format = " %-*s "; \
     } else { \
-      ::snprintf(buf, sizeof buf, "-%-*s, --%-*s  %s\n", longest_short_opt_length, opt.sopt.c_str(), longest_long_opt_length, opt.lopt.c_str(), opt.desc.c_str()); \
+      format = "-%-*s,"; \
     } \
+    format += " --%-*s   %s\n"; \
+    lopt_param = opt.lopt; \
+    lopt_param += " "; \
+    lopt_param += opt.param_name; \
+    ::snprintf(buf, sizeof buf, format.c_str(), \
+      longest_short_opt_length, opt.sopt.c_str(), \
+      longest_long_opt_param_name_length+1, lopt_param.c_str(), \
+      opt.desc.c_str()); \
     help += buf; \
   }
 

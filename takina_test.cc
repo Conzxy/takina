@@ -64,13 +64,13 @@ int main(int argc, char** argv) {
   takina::AddSection("Information");
   takina::AddOption({"", "version", "Display the version information"}, &opt.version);
   takina::AddSection("Parameter set test");
-  takina::AddOption({"s", "string", "Set string argument"}, &opt.stropt);
-  takina::AddOption({"i", "int", "Set int argument"}, &opt.iopt);
-  takina::AddOption({"f", "float", "Set floating-point number"}, &opt.fopt);
+  takina::AddOption({"s", "string", "Set string argument", "STR"}, &opt.stropt);
+  takina::AddOption({"i", "int", "Set int argument", "INT"}, &opt.iopt);
+  takina::AddOption({"f", "float", "Set floating-point number", "FLOAT_NUMBER"}, &opt.fopt);
   takina::AddSection("Multiple Parameters set test");
-  takina::AddOption({"ms", "multi_string", "Set multiple-string arguments"}, &opt.stropts);
-  takina::AddOption({"mi", "multi_int", "Set multiple-int arguments"}, &opt.iopts);
-  takina::AddOption({"mf", "multi_float", "Set multiple-floating-point-number arguments"}, &opt.dopts);
+  takina::AddOption({"ms", "multi_string", "Set multiple-string arguments", "STRINGS"}, &opt.stropts);
+  takina::AddOption({"mi", "multi_int", "Set multiple-int arguments", "INTS"}, &opt.iopts);
+  takina::AddOption({"mf", "multi_float", "Set multiple-floating-point-number arguments", "FLOAT_NUMBERS"}, &opt.dopts);
   // Duplicate option will output error message to stderr
   takina::AddOption({"mf", "multi_float", "Set multiple-floating-point-number arguments"}, &opt.dopts);
   takina::AddOption({"mi", "multi_int", "Set multiple-int arguments"}, &opt.iopts);
