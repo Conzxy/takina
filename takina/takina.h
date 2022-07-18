@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stddef.h>         // size_t
 #include <stdio.h>          // ::snprintf()
-#include <stdlib.h>           // exit()
+#include <stdlib.h>         // exit()
 
 #include <string>
 #include <utility>          // std::move()
@@ -29,6 +29,10 @@ enum OptType : uint8_t {
   OT_FDOUBLE,
   OT_MDOUBLE,
   OT_VOID, // No argument, use a boolean variable to indicates the option is set
+  OT_INT8,
+  OT_INT16,
+  OT_INT32,
+  OT_INT64,
 };
 
 struct OptionParameter {
@@ -161,6 +165,10 @@ inline void AddOption(OptDesc&& desc, _ptype *param) { \
 _DEFINE_ADD_OPTION(std::string, OT_STR)
 _DEFINE_ADD_OPTION(int, OT_INT)
 _DEFINE_ADD_OPTION(double, OT_DOUBLE)
+// _DEFINE_ADD_OPTION(int8_t, OT_INT8)
+// _DEFINE_ADD_OPTION(int16_t, OT_INT16)
+// _DEFINE_ADD_OPTION(int32_t, OT_INT32)
+// _DEFINE_ADD_OPTION(int64_t, OT_INT64)
 _DEFINE_ADD_OPTION(std::vector<std::string>, OT_MSTR)
 _DEFINE_ADD_OPTION(std::vector<int>, OT_MINT)
 _DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
@@ -177,8 +185,9 @@ _DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
 #define _OPTION_PROCESS(_map) \
           auto iter = _map.find(cur_option); \
           if (iter == _map.end()) { \
-            *errmsg = cur_option; \
-            *errmsg += " is an invalid option"; \
+            *errmsg = "Option: "; \
+            *errmsg += cur_option; \
+            *errmsg += " is not an valid option. Please type --help to check all allowed options"; \
             return false; \
           }
 
@@ -186,6 +195,29 @@ _DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
           if (cur_param->type == OT_VOID) { \
             *(bool*)(cur_param->param) = true; \
           }
+
+inline bool CheckArgumentIsLess(OptionParameter* cur_param, std::string const& cur_option, int cur_arg_num, std::string* errmsg) {
+  bool condition = false;
+  if (cur_param) {
+    switch (cur_param->type) {
+      case OT_STR:case OT_INT:case OT_DOUBLE:
+        condition = cur_arg_num == 0;
+      break;
+      case OT_FSTR:case OT_FINT:case OT_FDOUBLE:
+        condition = cur_arg_num < cur_param->size;
+      break;
+    }
+  }
+
+  if (condition) {
+    *errmsg = "Option: ";
+    *errmsg += cur_option;
+    *errmsg += ", the number of arguments is less than required";
+    return false;
+  }
+
+  return true;
+}
 
 inline bool Parse(int argc, char** argv, std::string* errmsg) {
   // argv[0] is the name of process, just ignore it
@@ -202,6 +234,7 @@ inline bool Parse(int argc, char** argv, std::string* errmsg) {
     // Check if is a option
     // short option or long option
     if (arg[0] == '-' && len > 1) {
+      if (!CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg)) return false;
       cur_arg_num = 0;
       // long option
       if (arg[1] == '-') {
@@ -243,6 +276,8 @@ inline bool Parse(int argc, char** argv, std::string* errmsg) {
       return true;
     }
   }
+
+  if (!CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg)) return false;
 
   return true;
 }
@@ -400,9 +435,9 @@ inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_n
 
 #define _FIXED_ARGUMENTS_ERR_ROUTINE \
       if (cur_arg_num > param->size) { \
-        *errmsg = "Options: "; \
+        *errmsg = "Option: "; \
         *errmsg += cur_option; \
-        *errmsg += "\nThe number of arguments over the given bound"; \
+        *errmsg += ", The number of arguments more than required"; \
         return false; \
       }
 
