@@ -29,10 +29,6 @@ enum OptType : uint8_t {
   OT_FDOUBLE,
   OT_MDOUBLE,
   OT_VOID, // No argument, use a boolean variable to indicates the option is set
-  OT_INT8,
-  OT_INT16,
-  OT_INT32,
-  OT_INT64,
 };
 
 struct OptionParameter {
@@ -165,10 +161,6 @@ inline void AddOption(OptDesc&& desc, _ptype *param) { \
 _DEFINE_ADD_OPTION(std::string, OT_STR)
 _DEFINE_ADD_OPTION(int, OT_INT)
 _DEFINE_ADD_OPTION(double, OT_DOUBLE)
-// _DEFINE_ADD_OPTION(int8_t, OT_INT8)
-// _DEFINE_ADD_OPTION(int16_t, OT_INT16)
-// _DEFINE_ADD_OPTION(int32_t, OT_INT32)
-// _DEFINE_ADD_OPTION(int64_t, OT_INT64)
 _DEFINE_ADD_OPTION(std::vector<std::string>, OT_MSTR)
 _DEFINE_ADD_OPTION(std::vector<int>, OT_MINT)
 _DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
