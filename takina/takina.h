@@ -34,7 +34,7 @@ enum OptType : uint8_t {
 struct OptionParameter {
   OptType type; // Reinterpret the param field
   void* param;  // pointer to the user-defined varaible
-  size_t size;
+  int size = 0;
 };
 
 // Use aggregation initialization to create a OptionDescription object
@@ -42,7 +42,7 @@ struct OptionDescption {
   std::string sopt;       // short option
   std::string lopt;       // long option
   std::string desc;       // description of option
-  std::string param_name; // name of parameters
+  std::string param_name{}; // name of parameters
 };
 
 using OptDesc = OptionDescption;
@@ -60,7 +60,7 @@ using OptDesc = OptionDescption;
 
 // Help message
 static std::string help;
-static bool has_help;
+static bool has_help = false;
 
 /*
  * To implement the AddUsage() and AddDescription() to position-of-call-independent,
@@ -167,7 +167,7 @@ _DEFINE_ADD_OPTION(std::vector<int>, OT_MINT)
 _DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
 
 #define _DEFINE_ADD_OPTION_FIXED(_ptype, _type) \
-inline void AddOption(OptDesc&& desc, _ptype *param, size_t n) { \
+inline void AddOption(OptDesc&& desc, _ptype *param, int n) { \
   detail::_AddOption(std::move(desc), {_type, param, n}); \
 }
 
