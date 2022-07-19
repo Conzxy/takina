@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
   auto success = takina::Parse(argc, argv, &message);
 
   if (success) {
+    takina::Teardown();
     PrintOption(opt);
   } else {
     ::puts(message.c_str());
