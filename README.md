@@ -70,8 +70,9 @@ takina::AddOption({"short-option", "long-option", "description"}, &has_option);
 std::string param;
 // OR int param;
 // OR double param;
-takina::AddOption({"short-option", "long-option", "description"}, &param);
+takina::AddOption({"short-option", "long-option", "description", "PARAMETER_NAME"}, &param);
 ```
+除此之外，也支持给参数指定名称来表示参数的意义或语义（比如单参/多参）
 
 #### 多参
 接受不定个数的实参。
@@ -94,12 +95,14 @@ takina::AddOption({...}, params, 2);
 std::string err_msg;
 const bool success = takina::Parse(argc, argv, &err_msg);
 if (success) {
+  takina::Teardown(); // free all the resources used for parse the cmd args
   // do something
 } else {
   // do something
   // e.g. print the err_msg
 }
 ```
+如果解析成功，可以调用`takina::Teardown()`释放用于解析命令行参数的资源，因为不再需要了。
 
 ## Example/Test
 在项目根目录中有一个测试文件，可以编译并运行。
@@ -122,21 +125,21 @@ The program is just a test
 Options: 
 
 Information:
-     --version       Display the version information
+     --version                     Display the version information
 
 Parameter set test:
--s , --string        Set string argument
--i , --int           Set int argument
--f , --float         Set floating-point number
+-s , --string STR                  Set string argument
+-i , --int INT                     Set int argument
+-f , --float FLOAT_NUMBER          Set floating-point number
 
 Multiple Parameters set test:
--ms, --multi_string  Set multiple-string arguments
--mi, --multi_int     Set multiple-int arguments
--mf, --multi_float   Set multiple-floating-point-number arguments
+-ms, --multi_string STRINGS        Set multiple-string arguments
+-mi, --multi_int INTS              Set multiple-int arguments
+-mf, --multi_float FLOAT_NUMBERS   Set multiple-floating-point-number arguments
 
 Fixed parameters set test:
--fs, --fixed_string  Set Fixed-string arguments
--fi, --fixed_int     Set Fixed-int arguments
--ff, --fixed_float   Set Fixed-floating-point-number arguments
-     --help          Display the help message
+-fs, --fixed_string                Set Fixed-string arguments
+-fi, --fixed_int                   Set Fixed-int arguments
+-ff, --fixed_float                 Set Fixed-floating-point-number arguments
+     --help                        Display the help message
 ```
