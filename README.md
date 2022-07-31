@@ -1,7 +1,6 @@
 # takina(A CLI options utility)
 ## Introduction
 `takina`是一个方便CLI应用设置选项(options)而编写的函数库。<br>
-该库是header-only的，因此只需要包含头文件即可使用，不需要连接库文件，也不需要build。<br>
 
 ## Usage
 ###  添加CLI的使用方式
@@ -107,7 +106,7 @@ if (success) {
 ## Example/Test
 在项目根目录中有一个测试文件，可以编译并运行。
 ```shell
-g++ -o takina_test takina_test.cc
+g++ -o takina_test takina_test.cc takina.cc
 ```
 
 ## Run

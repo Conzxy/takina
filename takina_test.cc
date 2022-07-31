@@ -1,5 +1,5 @@
 #define _TAKINA_DEBUG_
-#include "takina/takina.h"
+#include "takina.h"
 #include <iostream>
 
 struct TakinaOption {

@@ -1,23 +1,15 @@
-#ifndef _TAKINA_TAKINA_H_
-#define _TAKINA_TAKINA_H_
+#include "takina.h"
 
-#include <string.h>         // ::strlen()
+#include <stdio.h>          // snprintf()
+#include <stdlib.h>         // exit()
+#include <string.h>         // strlen()
 #include <assert.h>
 #include <stddef.h>         // size_t
-#include <stdio.h>          // ::snprintf()
-#include <stdlib.h>         // exit()
-
-#include <string>
-#include <utility>          // std::move()
 #include <unordered_map>
+#include <utility>          // move()
 #include <vector>
-#include <array>
-
-// I don't want to introduce std::max()
-#define TAKINA_MAX(x, y) (((x) < (y)) ? (y) : (x))
 
 namespace takina {
-
 enum OptType : uint8_t {
   OT_STR = 0,
   OT_FSTR, // fixed string
@@ -36,27 +28,6 @@ struct OptionParameter {
   void* param;  // pointer to the user-defined varaible
   int size = 0;
 };
-
-// Use aggregation initialization to create a OptionDescription object
-struct OptionDescption {
-  std::string sopt;       // short option
-  std::string lopt;       // long option
-  std::string desc;       // description of option
-  std::string param_name{}; // name of parameters
-};
-
-using OptDesc = OptionDescption;
-
-/*
- * !!!!!!
- * To make the libarary to be header-only(since the all functions is inline)
- * I set the all global varaible to static linkage
- * Therefore, I want user can include this file in the main file only(e.g. main.cc).
- * Because, static linkage can define separate entity into the separate traslation-unit and 
- * not violate the ODR rule.
- * i.e. it waste the memory space in the .code segment in the relocatable object file.
- * !!!!!!
- */
 
 // Help message
 static std::string help;
@@ -112,33 +83,26 @@ static std::vector<OptionDescption> options;
 // since the section_opt_map is unordered(hash table)
 static std::vector<std::string const*> sections;
 
-// Record current section
-// Define pointer to avoid redundancy
-// static std::string const* cur_section;
-// static std::string cur_option;
+static void AddOption_impl(OptDesc&& desc, OptionParameter opt_param);
+static void GenHelp();
+static bool StrInt(int* param, char const* arg, std::string const& cur_option, std::string* errmsg);
+static bool StrDouble(double* param, char const* arg, std::string const& cur_option, std::string* errmsg);
+static bool SetParameter(OptionParameter* param, char const* arg, int cur_arg_num, std::string const& cur_option, std::string* errmsg);
+static bool CheckArgumentIsLess(OptionParameter* cur_param, std::string const& cur_option, int cur_arg_num, std::string* errmsg);
 
-
-namespace detail {
-
-void _AddOption(OptDesc&& desc, OptionParameter opt_param);
-void _GenHelp();
-bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_num, std::string const& cur_option, std::string* errmsg);
-
-} // namespace detail
-
-inline void AddUsage(std::string const& desc) {
+void AddUsage(std::string const& desc) {
   usage.reserve(7+desc.size()+1);
   usage = "Usage: ";
   usage += desc;
   usage += "\n\n";
 }
 
-inline void AddDescription(std::string const& desc) {
+void AddDescription(std::string const& desc) {
   description = desc;
   description += "\n\n";
 }
 
-inline void AddSection(std::string&& section) {
+void AddSection(std::string&& section) {
   auto res = section_opt_map.insert({std::move(section), {}});
 
   if (!res.second) {
@@ -146,18 +110,17 @@ inline void AddSection(std::string&& section) {
     return;
   }
   // FIXME
-  //cur_section = &res.first->first;
   sections.emplace_back(&res.first->first);
 }
 
-inline void AddOption(OptDesc&& desc, bool* param) {
+void AddOption(OptDesc&& desc, bool* param) {
   *param = false;
-  detail::_AddOption(std::move(desc), {OT_VOID, param});
+  AddOption_impl(std::move(desc), {OT_VOID, param});
 }
 
 #define _DEFINE_ADD_OPTION(_ptype, _type) \
-inline void AddOption(OptDesc&& desc, _ptype *param) { \
-  detail::_AddOption(std::move(desc), {_type, param}); \
+void AddOption(OptDesc&& desc, _ptype *param) { \
+  AddOption_impl(std::move(desc), {_type, param}); \
 }
 
 _DEFINE_ADD_OPTION(std::string, OT_STR)
@@ -168,8 +131,8 @@ _DEFINE_ADD_OPTION(std::vector<int>, OT_MINT)
 _DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
 
 #define _DEFINE_ADD_OPTION_FIXED(_ptype, _type) \
-inline void AddOption(OptDesc&& desc, _ptype *param, int n) { \
-  detail::_AddOption(std::move(desc), {_type, param, n}); \
+void AddOption(OptDesc&& desc, _ptype *param, int n) { \
+  AddOption_impl(std::move(desc), {_type, param, n}); \
 }
 
 _DEFINE_ADD_OPTION_FIXED(std::string, OT_FSTR)
@@ -190,35 +153,12 @@ _DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
             *(bool*)(cur_param->param) = true; \
           }
 
-inline bool CheckArgumentIsLess(OptionParameter* cur_param, std::string const& cur_option, int cur_arg_num, std::string* errmsg) {
-  bool condition = false;
-  if (cur_param) {
-    switch (cur_param->type) {
-      case OT_STR:case OT_INT:case OT_DOUBLE:
-        condition = cur_arg_num == 0;
-      break;
-      case OT_FSTR:case OT_FINT:case OT_FDOUBLE:
-        condition = cur_arg_num < cur_param->size;
-      break;
-    }
-  }
-
-  if (condition) {
-    *errmsg = "Option: ";
-    *errmsg += cur_option;
-    *errmsg += ", the number of arguments is less than required";
-    return false;
-  }
-
-  return true;
-}
-
-inline bool Parse(int argc, char** argv, std::string* errmsg) {
+bool Parse(int argc, char** argv, std::string* errmsg) {
   // argv[0] is the name of process, just ignore it
   OptionParameter* cur_param = nullptr;
   std::string cur_option;
   int cur_arg_num = 0;
-  detail::_GenHelp();  
+  GenHelp();  
 
   for (int i = 1; i < argc; ++i) {
     char const* arg = argv[i];
@@ -259,7 +199,7 @@ inline bool Parse(int argc, char** argv, std::string* errmsg) {
           break;
       }
 
-      if (!detail::_SetParamater(cur_param, arg, cur_arg_num, cur_option, errmsg)) {
+      if (!SetParameter(cur_param, arg, cur_arg_num, cur_option, errmsg)) {
         return false;
       }
     }
@@ -276,7 +216,7 @@ inline bool Parse(int argc, char** argv, std::string* errmsg) {
   return true;
 }
 
-inline void DebugPrint() {
+void DebugPrint() {
 #ifdef _TAKINA_DEBUG_
   printf("======= Debug Print =======\n");
   printf("All long options: \n");
@@ -292,33 +232,36 @@ inline void DebugPrint() {
 #endif
 }
 
-namespace detail {
-
-inline void _AddOption(OptDesc&& desc, OptionParameter opt_param) {
-  if (desc.lopt.empty()) return;
-
-  auto res = long_param_map.insert({(desc.lopt), opt_param});
-  if (!res.second) {
-    ::fprintf(stderr, "The long option: %s does exists\n", desc.lopt.c_str());
-    return;
-  }
-
-  if (!desc.sopt.empty()) {
-    if (!short_param_map.insert({(desc.sopt), &res.first->second}).second) {
-      ::fprintf(stderr, "The short option: %s does exists\n", desc.sopt.c_str());
-      return;
-    }
-
-  }
-
-  if (!sections.empty()) {
-    section_opt_map[*sections.back()].push_back(std::move(desc));
-  } else {
-    options.push_back(std::move(desc));
-  }
+static inline void _Teardown(std::string* str) {
+  str->clear();
+  str->shrink_to_fit();
 }
 
-inline void _GenHelp() {
+template<typename T>
+static inline void _Teardown(std::vector<T>* vec) {
+  vec->clear();
+  vec->shrink_to_fit();
+}
+
+template<typename T>
+static inline void _Teardown(T* cont) {
+  cont->clear();
+}
+
+#define _TAKINA_TEARDOWN(obj) (_Teardown(obj))
+
+void Teardown() {
+  _TAKINA_TEARDOWN(&help);
+  _TAKINA_TEARDOWN(&usage);
+  _TAKINA_TEARDOWN(&description);
+  _TAKINA_TEARDOWN(&long_param_map);
+  _TAKINA_TEARDOWN(&short_param_map);
+  _TAKINA_TEARDOWN(&section_opt_map);
+  _TAKINA_TEARDOWN(&sections);
+  _TAKINA_TEARDOWN(&options);
+}
+
+static inline void GenHelp() {
   AddOption({"", "help", "Display the help message"}, &has_help);
 
   help.reserve(usage.size()+description.size());
@@ -383,12 +326,36 @@ inline void _GenHelp() {
   }
 }
 
+inline void AddOption_impl(OptDesc&& desc, OptionParameter opt_param) {
+  if (desc.lopt.empty()) return;
+
+  auto res = long_param_map.insert({(desc.lopt), opt_param});
+  if (!res.second) {
+    ::fprintf(stderr, "The long option: %s does exists\n", desc.lopt.c_str());
+    return;
+  }
+
+  if (!desc.sopt.empty()) {
+    if (!short_param_map.insert({(desc.sopt), &res.first->second}).second) {
+      ::fprintf(stderr, "The short option: %s does exists\n", desc.sopt.c_str());
+      return;
+    }
+
+  }
+
+  if (!sections.empty()) {
+    section_opt_map[*sections.back()].push_back(std::move(desc));
+  } else {
+    options.push_back(std::move(desc));
+  }
+}
+
 #define ERRMSG_SET_COMMON \
         *errmsg = "Option: "; \
         *errmsg += cur_option; \
         *errmsg += '\n';
 
-inline bool _Str2Int(int* param, char const* arg, std::string const& cur_option, std::string* errmsg) {
+static inline bool StrInt(int* param, char const* arg, std::string const& cur_option, std::string* errmsg) {
   char* end = nullptr;
   const auto res = ::strtol(arg, &end, 10);
   if (res == 0 && end == arg) {
@@ -400,7 +367,7 @@ inline bool _Str2Int(int* param, char const* arg, std::string const& cur_option,
   return true;
 }
 
-inline bool _Str2Double(double* param, char const* arg, std::string const& cur_option, std::string* errmsg) {
+static inline bool StrDouble(double* param, char const* arg, std::string const& cur_option, std::string* errmsg) {
   char* end = nullptr;
   const auto res = ::strtod(arg, &end);
   if (res == 0 && end == arg) {
@@ -412,20 +379,20 @@ inline bool _Str2Double(double* param, char const* arg, std::string const& cur_o
   return true;
 }
 
-inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_num, std::string const& cur_option, std::string* errmsg) {
+static inline bool SetParameter(OptionParameter* param, char const* arg, int cur_arg_num, std::string const& cur_option, std::string* errmsg) {
   switch (param->type) {
     case OT_STR:
       *(std::string*)(param->param) = arg;
       break;
     case OT_INT: {
       int res;
-      if (!_Str2Int(&res, arg, cur_option, errmsg)) return false;
+      if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       *(int*)(param->param) = res;
     }
       break;
     case OT_DOUBLE: {
       double res;
-      if (!_Str2Double(&res, arg, cur_option, errmsg)) return false;
+      if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       *(double*)(param->param) = res;
     }
       break;
@@ -436,13 +403,13 @@ inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_n
       break;
     case OT_MINT: {
       int res;
-      if (!_Str2Int(&res, arg, cur_option, errmsg)) return false;
+      if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       ((std::vector<int>*)(param->param))->emplace_back(res);
     }
       break;
     case OT_MDOUBLE: {
       double res;
-      if (!_Str2Double(&res, arg, cur_option, errmsg)) return false;
+      if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       ((std::vector<double>*)(param->param))->emplace_back(res);
     }
       break;
@@ -465,7 +432,7 @@ inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_n
       _FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (int*)(param->param);
       int res;
-      if (!_Str2Int(&res, arg, cur_option, errmsg)) return false;
+      if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num-1] = res;
     }
       break;
@@ -473,7 +440,7 @@ inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_n
       _FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (double*)(param->param);
       double res;
-      if (!_Str2Double(&res, arg, cur_option, errmsg)) return false;
+      if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num-1] = res;
     }
       break;
@@ -482,55 +449,27 @@ inline bool _SetParamater(OptionParameter* param, char const* arg, int cur_arg_n
   return true;
 }
 
-template<typename T>
-inline void _DestroyObject(T* obj) {
-  obj->~T();
+static inline bool CheckArgumentIsLess(OptionParameter* cur_param, std::string const& cur_option, int cur_arg_num, std::string* errmsg) {
+  bool condition = false;
+  if (cur_param) {
+    switch (cur_param->type) {
+      case OT_STR:case OT_INT:case OT_DOUBLE:
+        condition = cur_arg_num == 0;
+      break;
+      case OT_FSTR:case OT_FINT:case OT_FDOUBLE:
+        condition = cur_arg_num < cur_param->size;
+      break;
+    }
+  }
+
+  if (condition) {
+    *errmsg = "Option: ";
+    *errmsg += cur_option;
+    *errmsg += ", the number of arguments is less than required";
+    return false;
+  }
+
+  return true;
 }
 
-inline void _Teardown(std::string* str) {
-  str->clear();
-  str->shrink_to_fit();
-}
-
-template<typename T>
-inline void _Teardown(std::vector<T>* vec) {
-  vec->clear();
-  vec->shrink_to_fit();
-}
-
-template<typename T>
-inline void _Teardown(T* cont) {
-  cont->clear();
-}
-
-} // namespace detail
-
-#define _TAKINA_DESTROY_OBJ(obj) (detail::_DestroyObject(obj))
-#define _TAKINA_TEARDOWN(obj) (detail::_Teardown(obj))
-
-inline void Teardown() {
-#if 1
-  _TAKINA_TEARDOWN(&help);
-  _TAKINA_TEARDOWN(&usage);
-  _TAKINA_TEARDOWN(&description);
-  _TAKINA_TEARDOWN(&long_param_map);
-  _TAKINA_TEARDOWN(&short_param_map);
-  _TAKINA_TEARDOWN(&section_opt_map);
-  _TAKINA_TEARDOWN(&sections);
-  _TAKINA_TEARDOWN(&options);
-#else
-  _TAKINA_DESTROY_OBJ(&help);
-  _TAKINA_DESTROY_OBJ(&usage);
-  _TAKINA_DESTROY_OBJ(&description);
-  _TAKINA_DESTROY_OBJ(&long_param_map);
-  _TAKINA_DESTROY_OBJ(&short_param_map);
-  _TAKINA_DESTROY_OBJ(&section_opt_map);
-  _TAKINA_DESTROY_OBJ(&sections);
-  _TAKINA_DESTROY_OBJ(&options);
-#endif
-}
-
-
-} // namespace takina
-
-#endif // _TAKINA_TAKINA_H_
+} // takina
