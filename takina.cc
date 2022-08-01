@@ -21,12 +21,14 @@ enum OptType : uint8_t {
   OT_FDOUBLE,
   OT_MDOUBLE,
   OT_VOID, // No argument, use a boolean variable to indicates the option is set
+  OT_USR, // user-defined
 };
 
 struct OptionParameter {
   OptType type; // Reinterpret the param field
-  void* param;  // pointer to the user-defined varaible
   int size = 0;
+  void* param;  // pointer to the user-defined varaible
+  OptionFunction opt_fn;
 };
 
 // Help message
@@ -115,12 +117,12 @@ void AddSection(std::string&& section) {
 
 void AddOption(OptDesc&& desc, bool* param) {
   *param = false;
-  AddOption_impl(std::move(desc), {OT_VOID, param});
+  AddOption_impl(std::move(desc), {.type=OT_VOID, .param=param});
 }
 
 #define _DEFINE_ADD_OPTION(_ptype, _type) \
 void AddOption(OptDesc&& desc, _ptype *param) { \
-  AddOption_impl(std::move(desc), {_type, param}); \
+  AddOption_impl(std::move(desc), {.type=_type, .param=param}); \
 }
 
 _DEFINE_ADD_OPTION(std::string, OT_STR)
@@ -132,12 +134,16 @@ _DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
 
 #define _DEFINE_ADD_OPTION_FIXED(_ptype, _type) \
 void AddOption(OptDesc&& desc, _ptype *param, int n) { \
-  AddOption_impl(std::move(desc), {_type, param, n}); \
+  AddOption_impl(std::move(desc), {_type, n, param}); \
 }
 
 _DEFINE_ADD_OPTION_FIXED(std::string, OT_FSTR)
 _DEFINE_ADD_OPTION_FIXED(int, OT_FINT)
 _DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
+
+void AddOption(OptDesc &&desc, OptionFunction fn) {
+  AddOption_impl(std::move(desc), {.type=OT_USR, .opt_fn=std::move(fn)});
+}
 
 #define _CHECK_OPTION_EXISTS(_map) \
           auto iter = _map.find(cur_option); \
@@ -158,6 +164,7 @@ bool Parse(int argc, char** argv, std::string* errmsg) {
   OptionParameter* cur_param = nullptr;
   std::string cur_option;
   int cur_arg_num = 0;
+  errmsg->clear();
   GenHelp();  
 
   for (int i = 1; i < argc; ++i) {
@@ -442,6 +449,14 @@ static inline bool SetParameter(OptionParameter* param, char const* arg, int cur
       double res;
       if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num-1] = res;
+    }
+      break;
+    case OT_USR: {
+      if (!param->opt_fn(arg)) {
+        *errmsg += "Option error: Invalid arguments for ";
+        *errmsg += cur_option;
+        return false;
+      }
     }
       break;
   }

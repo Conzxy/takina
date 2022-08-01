@@ -1,6 +1,12 @@
 #define _TAKINA_DEBUG_
 #include "takina.h"
 #include <iostream>
+#include <string.h>
+
+enum TestEnum {
+  TE_A = 10,
+  TE_B,
+};
 
 struct TakinaOption {
   std::string stropt;
@@ -14,6 +20,7 @@ struct TakinaOption {
   bool version;
   int iopt;
   double fopt;
+  TestEnum e;
 };
 
 template<typename T>
@@ -53,6 +60,7 @@ static inline void PrintOption(TakinaOption const& option) {
   PrintFixedParams(std::cout, option.ifopts);
   std::cout << "\nffopts: ";
   PrintFixedParams(std::cout, option.ffopts);
+  std::cout << "\nenum: " << option.e;
   std::cout << std::endl;
 }
 
@@ -80,6 +88,17 @@ int main(int argc, char** argv) {
   takina::AddOption({"fs", "fixed_string", "Set Fixed-string arguments"}, opt.strfopts, 2);
   takina::AddOption({"fi", "fixed_int", "Set Fixed-int arguments"}, opt.ifopts, 2);
   takina::AddOption({"ff", "fixed_float", "Set Fixed-floating-point-number arguments"}, opt.ffopts, 2);
+  takina::AddOption({"e", "enum", "Set enum argument", "ENUM"}, [&opt](char const *arg) {
+    if (!strcmp(arg, "A")) {
+      opt.e = TE_A;
+    } else if (!strcmp(arg, "B")) {
+      opt.e = TE_B;
+    } else {
+      return false;
+    }
+    return true;
+  });
+
   // takina::DebugPrint();
   auto success = takina::Parse(argc, argv, &message);
 

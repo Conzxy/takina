@@ -49,6 +49,7 @@ takina::AddOption({"", "long-option", ...}, ...);
 * 单参(single)
 * 固定个数参数(fixed number)
 * 多参(multiple)
+* 用户自定义参数类型(user-defined)
 
 而支持的参数类型有`字符串`，`整型`，`浮点数`。<br>
 在`C++`中分别用`std::string`，`int`(我认为`int`够用了)，`double`表示。
@@ -87,6 +88,19 @@ takina::AddOption({...}, &str_params);
 int params[2];
 takina::AddOption({...}, params, 2);
 ```
+
+#### 用户自定义参数
+`takina`通过用户注册的回调解析并设置选项的参数。至于`参数个数`，`合理性`等均由用户控制，不由库本身负责。
+
+回调签名(signature of callback)：
+```cpp
+/* \param arg argument of the current option
+ * \return 
+ *  true -- success
+ */
+typedef std::function<bool(char const *arg)> OptionFunction;
+```
+如果传递的实参按用户回调的逻辑不合理，可以返回`false`表示解析错误。
 
 ### Parse
 最后，调用`takina::Parse()`解析命令行参数，返回值表示解析是否成功，如果有错误，那么错误信息会写入第三参数中，比如单参选项实参个数超过1等。
