@@ -25,10 +25,12 @@ enum OptType : uint8_t {
 };
 
 struct OptionParameter {
-  OptType type; // Reinterpret the param field
+  /* Because options will be parsed only once,
+   * I don't use union to compress the space */
+  OptType type; // interpret the param field
   int size = 0;
-  void* param;  // pointer to the user-defined varaible
-  OptionFunction opt_fn;
+  void* param = nullptr;  // pointer to the user-defined varaible
+  OptionFunction opt_fn{};
 };
 
 // Help message
