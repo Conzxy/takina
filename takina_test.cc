@@ -1,4 +1,4 @@
-#define _TAKINA_DEBUG_
+#define TAKINA_DEBUG
 #include "takina.h"
 #include <iostream>
 #include <string.h>

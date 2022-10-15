@@ -40,18 +40,27 @@ void AddOption(OptDesc &&desc, double *param);
 void AddOption(OptDesc &&desc, std::vector<std::string> *param); 
 void AddOption(OptDesc &&desc, std::vector<int> *param); 
 void AddOption(OptDesc &&desc, std::vector<double> *param); 
-void AddOption(OptDesc &&desc, std::string *param, int n);
-void AddOption(OptDesc &&desc, int *param, int n);
-void AddOption(OptDesc &&desc, double *param, int n);
-void AddOption(OptDesc &&desc, OptionFunction fn);
+void AddOption(OptDesc &&desc, std::string *param, unsigned int n);
+void AddOption(OptDesc &&desc, int *param, unsigned int n);
+void AddOption(OptDesc &&desc, double *param, unsigned int n);
+void AddOption(OptDesc &&desc, OptionFunction fn, unsigned int n=1);
+#define MAX_OPTION_ARGS_NUM ((unsigned int)-1)
 
 /** parse the command line arguments */
-bool Parse(int argc, char** argv, std::string* errmsg);
+bool Parse(char **argv_begin, char **argv_end, std::string *errmsg);
+
+inline bool Parse(int argc, char** argv, std::string* errmsg) {
+  return Parse(argv+1, argv+argc, errmsg);
+}
 
 /** Free the resources used for parsing options */
 void Teardown();
 
 void DebugPrint();
+
+void EnableIndependentNonOptionArgument(bool opt) noexcept;
+
+std::vector<char const*> &GetNonOptionArguments();
 
 } // namespace takina
 
