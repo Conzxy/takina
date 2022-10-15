@@ -101,6 +101,23 @@ takina::AddOption({...}, params, 2);
 typedef std::function<bool(char const *arg)> OptionFunction;
 ```
 如果传递的实参按用户回调的逻辑不合理，可以返回`false`表示解析错误。
+为了方便检测选项的实参合理性， 允许由用户指定接受的实参个数（`AddOption()`的第三参数），默认为1，最大为`MAX_OPTION_ARGS_NUM`，表示无论多少实参都接受。
+
+### 位置无关的非选项实参（position-independent non-option arguments）
+`非选项实参`是指不应视作选项的实参，而`位置无关`是指无论它出现在哪都应该被视作非选项实参。e.g.
+```shell
+ssh -p 6000 xxxx@xxxx
+# 与下面的命令等价
+ssh xxxx@xxxx -p 6000
+```
+这里`-p`的可接受实参个数为1个，因此多出来的被视为非选项实参。
+
+相关函数：
+```cpp
+// NOTICE: position省略了
+takina::EnableIndependentNonOptionArgument(bool);
+takina::GetNonOptionArguments()
+```
 
 ### Parse
 最后，调用`takina::Parse()`解析命令行参数，返回值表示解析是否成功，如果有错误，那么错误信息会写入第三参数中，比如单参选项实参个数超过1等。
