@@ -10,6 +10,7 @@
 #include <vector>
 
 namespace takina {
+
 enum OptType : uint8_t {
   OT_STR = 0,
   OT_FSTR, // fixed string
@@ -32,6 +33,12 @@ struct OptionParameter {
   void *param = nullptr; // pointer to the user-defined varaible
   OptionFunction opt_fn{};
 };
+
+/* FIXME
+ * How to collect the memory of static variable?
+ * If use a class wrapper, will move some headers to the header file(takina.h).
+ * Besides, I think global function is easy to use.
+ */
 
 // Help message
 static std::string help;
@@ -83,7 +90,7 @@ static std::unordered_map<std::string, OptionParameter *> short_param_map;
 // When there are some sections at least 1
 // section -> { short, long, desc }[]
 static std::unordered_map<std::string, std::vector<OptionDescption>>
-    section_opt_map;
+    section_opt_map({ {"", {}} });
 
 // There is no section
 // { short, long, desc }[]
@@ -91,10 +98,10 @@ static std::vector<OptionDescption> options;
 
 // To make the section output in the FIFO order
 // since the section_opt_map is unordered(hash table)
-static std::vector<std::string const *> sections;
+static std::vector<std::string const *> sections = { &section_opt_map.begin()->first };
 
 /* Store the non-options arguments */
-static std::vector<char const *> non_opt_args;
+/* static std::vector<char const *> non_opt_args; */
 
 /* Utility function */
 static void AddOption_impl(OptDesc &&desc, OptionParameter opt_param);
@@ -231,7 +238,7 @@ bool Parse(char **argv_begin, char **argv_end, std::string *errmsg)
       // Non option arguments
       if (!cur_param) {
         if (enable_independent_non_opt_arg) {
-          non_opt_args.push_back(arg);
+          GetNonOptionArguments().push_back(arg);
           continue;
         } else {
           *errmsg += "No option, invalid argument";
@@ -241,7 +248,7 @@ bool Parse(char **argv_begin, char **argv_end, std::string *errmsg)
       cur_arg_num++;
       if (CheckArgumentIsGreater(cur_param, cur_option, cur_arg_num, errmsg)) {
         if (enable_independent_non_opt_arg) {
-          non_opt_args.push_back(arg);
+          GetNonOptionArguments().push_back(arg);
         } else {
           return false;
         }
@@ -348,18 +355,15 @@ static inline void GenHelp()
   }
 
   help += "Options: \n\n";
-  if (!sections.empty()) {
-    for (auto const &section : sections) {
-      help += *section;
-      help += ":\n";
+  for (auto const &section : sections) {
+    help += *section;
+    if (!section->empty()) help += ":\n";
 
-      auto const &opts = section_opt_map[*section];
-      GenOptions(opts, long_opt_param_align_len, short_opt_align_len);
-      help += "\n";
-    }
-  } else {
-    GenOptions(options, long_opt_param_align_len, short_opt_align_len);
+    auto const &opts = section_opt_map[*section];
+    GenOptions(opts, long_opt_param_align_len, short_opt_align_len);
+    help += "\n";
   }
+  // Remove the last newline
   help.pop_back();
 }
 
@@ -410,12 +414,9 @@ inline void AddOption_impl(OptDesc &&desc, OptionParameter opt_param)
       return;
     }
   }
-
-  if (!sections.empty()) {
-    section_opt_map[*sections.back()].push_back(std::move(desc));
-  } else {
-    options.push_back(std::move(desc));
-  }
+  
+  assert(!sections.empty());
+  section_opt_map[*sections.back()].push_back(std::move(desc));
 }
 
 static inline bool StrInt(int *param, char const *arg,
@@ -604,6 +605,14 @@ static inline bool CheckArgumentIsGreater(OptionParameter *cur_param,
   return false;
 }
 
-std::vector<char const *> &GetNonOptionArguments() { return non_opt_args; }
+std::vector<char const *> &GetNonOptionArguments() { 
+  /* non_opt_args isn't a trivial class,
+   * If some non trivial class initialization depend on 
+   * this variable, it is dangerous since non_opt_args 
+   * may be initialized after the depended class
+   */
+  static std::vector<char const *> non_opt_args;
+  return non_opt_args; 
+}
 
 } // namespace takina
