@@ -90,7 +90,7 @@ static std::unordered_map<std::string, OptionParameter *> short_param_map;
 // When there are some sections at least 1
 // section -> { short, long, desc }[]
 static std::unordered_map<std::string, std::vector<OptionDescption>>
-    section_opt_map({ {"", {}} });
+    section_opt_map({{"", {}}});
 
 // There is no section
 // { short, long, desc }[]
@@ -98,7 +98,8 @@ static std::vector<OptionDescption> options;
 
 // To make the section output in the FIFO order
 // since the section_opt_map is unordered(hash table)
-static std::vector<std::string const *> sections = { &section_opt_map.begin()->first };
+static std::vector<std::string const *> sections = {
+    &section_opt_map.begin()->first};
 
 /* Store the non-options arguments */
 /* static std::vector<char const *> non_opt_args; */
@@ -152,13 +153,19 @@ void AddSection(std::string &&section)
 void AddOption(OptDesc &&desc, bool *param)
 {
   *param = false;
-  AddOption_impl(std::move(desc), {.type = OT_VOID, .param = param});
+  OptionParameter opt;
+  opt.type = OT_VOID;
+  opt.param = param;
+  AddOption_impl(std::move(desc), opt);
 }
 
 #define DEFINE_ADD_OPTION(_ptype, _type)                                       \
   void AddOption(OptDesc &&desc, _ptype *param)                                \
   {                                                                            \
-    AddOption_impl(std::move(desc), {.type = _type, .param = param});          \
+    OptionParameter opt;                                                       \
+    opt.type = _type;                                                          \
+    opt.param = param;                                                         \
+    AddOption_impl(std::move(desc), opt);                                      \
   }
 
 DEFINE_ADD_OPTION(std::string, OT_STR)
@@ -171,7 +178,11 @@ DEFINE_ADD_OPTION(std::vector<double>, OT_MDOUBLE)
 #define DEFINE_ADD_OPTION_FIXED(_ptype, _type)                                 \
   void AddOption(OptDesc &&desc, _ptype *param, unsigned int n)                \
   {                                                                            \
-    AddOption_impl(std::move(desc), {_type, n, param});                        \
+    OptionParameter opt;                                                       \
+    opt.type = _type;                                                          \
+    opt.size = n;                                                              \
+    opt.param = param;                                                         \
+    AddOption_impl(std::move(desc), opt);                                      \
   }
 
 DEFINE_ADD_OPTION_FIXED(std::string, OT_FSTR)
@@ -180,8 +191,11 @@ DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
 
 void AddOption(OptDesc &&desc, OptionFunction fn, unsigned int n)
 {
-  AddOption_impl(std::move(desc),
-                 {.type = OT_USR, .size = n, .opt_fn = std::move(fn)});
+  OptionParameter opt;
+  opt.type = OT_USR;
+  opt.size = n;
+  opt.opt_fn = std::move(fn);
+  AddOption_impl(std::move(desc), std::move(opt));
 }
 
 #define CHECK_OPTION_EXISTS(iter, _map)                                        \
@@ -414,7 +428,7 @@ inline void AddOption_impl(OptDesc &&desc, OptionParameter opt_param)
       return;
     }
   }
-  
+
   assert(!sections.empty());
   section_opt_map[*sections.back()].push_back(std::move(desc));
 }
@@ -461,31 +475,26 @@ static inline bool SetParameter(OptionParameter *param, char const *arg,
     case OT_STR:
       *(std::string *)(param->param) = arg;
       break;
-    case OT_INT:
-    {
+    case OT_INT: {
       int res;
       if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       *(int *)(param->param) = res;
     } break;
-    case OT_DOUBLE:
-    {
+    case OT_DOUBLE: {
       double res;
       if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       *(double *)(param->param) = res;
     } break;
-    case OT_MSTR:
-    {
+    case OT_MSTR: {
       ((std::vector<std::string> *)(param->param))->emplace_back(arg);
       break;
     } break;
-    case OT_MINT:
-    {
+    case OT_MINT: {
       int res;
       if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       ((std::vector<int> *)(param->param))->emplace_back(res);
     } break;
-    case OT_MDOUBLE:
-    {
+    case OT_MDOUBLE: {
       double res;
       if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       ((std::vector<double> *)(param->param))->emplace_back(res);
@@ -499,30 +508,26 @@ static inline bool SetParameter(OptionParameter *param, char const *arg,
     return false;                                                              \
   }
 
-    case OT_FSTR:
-    {
+    case OT_FSTR: {
       FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (std::string *)(param->param);
       arr[cur_arg_num - 1] = arg;
     } break;
-    case OT_FINT:
-    {
+    case OT_FINT: {
       FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (int *)(param->param);
       int res;
       if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num - 1] = res;
     } break;
-    case OT_FDOUBLE:
-    {
+    case OT_FDOUBLE: {
       FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (double *)(param->param);
       double res;
       if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num - 1] = res;
     } break;
-    case OT_USR:
-    {
+    case OT_USR: {
       if (!param->opt_fn(arg)) {
         *errmsg += "Option error: Invalid arguments for ";
         *errmsg += cur_option;
@@ -578,16 +583,14 @@ static inline bool CheckArgumentIsGreater(OptionParameter *cur_param,
   switch (cur_param->type) {
     case OT_STR:
     case OT_INT:
-    case OT_DOUBLE:
-    {
+    case OT_DOUBLE: {
       size = 1;
     } break;
 
     case OT_FDOUBLE:
     case OT_FINT:
     case OT_FSTR:
-    case OT_USR:
-    {
+    case OT_USR: {
       size = cur_param->size;
     } break;
   }
@@ -605,14 +608,15 @@ static inline bool CheckArgumentIsGreater(OptionParameter *cur_param,
   return false;
 }
 
-std::vector<char const *> &GetNonOptionArguments() { 
+std::vector<char const *> &GetNonOptionArguments()
+{
   /* non_opt_args isn't a trivial class,
-   * If some non trivial class initialization depend on 
-   * this variable, it is dangerous since non_opt_args 
+   * If some non trivial class initialization depend on
+   * this variable, it is dangerous since non_opt_args
    * may be initialized after the depended class
    */
   static std::vector<char const *> non_opt_args;
-  return non_opt_args; 
+  return non_opt_args;
 }
 
 } // namespace takina
