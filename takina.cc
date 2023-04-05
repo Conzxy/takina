@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <utility> // move()
 #include <vector>
+#include <limits>
 
 namespace takina {
 
@@ -592,6 +593,13 @@ static inline bool CheckArgumentIsGreater(OptionParameter *cur_param,
     case OT_FSTR:
     case OT_USR: {
       size = cur_param->size;
+    } break;
+
+    case OT_MDOUBLE:
+    case OT_MINT:
+    case OT_MSTR:
+    {
+      size = std::numeric_limits<unsigned int>::max();
     } break;
   }
 
