@@ -416,7 +416,6 @@ void GenOptions(std::vector<OptionDescption> const &opts,
   // combine them to single unit.
   for (auto const &opt : opts) {
     std::string format;
-    auto const &opt_param = long_param_map[opt.lopt];
     if (opt.sopt.empty()) {
       format = " %-*s ";
     } else {
