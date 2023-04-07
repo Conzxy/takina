@@ -2,6 +2,8 @@
 ## Introduction
 `takina`是一个方便CLI应用设置选项(options)而编写的函数库。<br>
 
+由于只有一个源文件，所以可以很简单地引入你的项目！
+
 ## Usage
 ###  添加CLI的使用方式
 ```cpp
@@ -73,6 +75,8 @@ std::string param;
 takina::AddOption({"short-option", "long-option", "description", "PARAMETER_NAME"}, &param);
 ```
 除此之外，也支持给参数指定名称来表示参数的意义或语义（比如单参/多参）
+
+> 目前仅支持用户自定义选项指定 `PARAMETER_NAME` 有效，其他选项由库根据选项类型自动生成。
 
 #### 多参
 接受不定个数的实参。
@@ -155,21 +159,22 @@ The program is just a test
 Options: 
 
 Information:
-     --version                     Display the version information
+     --version                        Display the version information
 
 Parameter set test:
--s , --string STR                  Set string argument
--i , --int INT                     Set int argument
--f , --float FLOAT_NUMBER          Set floating-point number
+-s , --string <string>                Set string argument
+-i , --int <integer>                  Set int argument
+-f , --float <float number>           Set floating-point number
 
 Multiple Parameters set test:
--ms, --multi_string STRINGS        Set multiple-string arguments
--mi, --multi_int INTS              Set multiple-int arguments
--mf, --multi_float FLOAT_NUMBERS   Set multiple-floating-point-number arguments
+-ms, --multi_string <n strings>       Set multiple-string arguments
+-mi, --multi_int <n integers>         Set multiple-int arguments
+-mf, --multi_float <n float numbers>  Set multiple-floating-point-number arguments
 
 Fixed parameters set test:
--fs, --fixed_string                Set Fixed-string arguments
--fi, --fixed_int                   Set Fixed-int arguments
--ff, --fixed_float                 Set Fixed-floating-point-number arguments
-     --help                        Display the help message
+-fs, --fixed_string <2 strings>       Set Fixed-string arguments
+-fi, --fixed_int <2 integers>         Set Fixed-int arguments
+-ff, --fixed_float <2 float numbers>  Set Fixed-floating-point-number arguments
+-e , --enum ENUM                      Set enum argument
+     --help                           Display the help message
 ```
