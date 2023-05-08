@@ -9,6 +9,7 @@
 #include <utility> // move()
 #include <vector>
 #include <limits>
+#include <cstdint>
 
 namespace takina {
 
@@ -32,11 +33,11 @@ static inline std::string const &OptType2Str(OptType t) noexcept;
 struct OptionParameter {
   /* Because options will be parsed only once,
    * I don't use union to compress the space */
-  OptType type;          // interpret the param field
-  unsigned int size = 0; // Used for fixed or user-defined option
-  void *param = nullptr; // pointer to the user-defined varaible
+  OptType        type;            // interpret the param field
+  unsigned int   size  = 0;       // Used for fixed or user-defined option
+  void          *param = nullptr; // pointer to the user-defined varaible
   OptionFunction opt_fn{};
-  std::string type_hint;
+  std::string    type_hint;
 };
 
 /* FIXME
@@ -47,13 +48,10 @@ struct OptionParameter {
 
 // Help message
 static std::string help;
-static bool has_help = false;
-static bool enable_independent_non_opt_arg = false;
+static bool        has_help                       = false;
+static bool        enable_independent_non_opt_arg = false;
 
-void EnableIndependentNonOptionArgument(bool opt) noexcept
-{
-  enable_independent_non_opt_arg = opt;
-}
+void EnableIndependentNonOptionArgument(bool opt) noexcept { enable_independent_non_opt_arg = opt; }
 
 /*
  * To implement the AddUsage() and AddDescription() to
@@ -95,36 +93,49 @@ static std::unordered_map<std::string, OptionParameter *> short_param_map;
 // When there are some sections at least 1
 // section -> { short, long, desc }[]
 // Register a dummy section to handle no section case
-static std::unordered_map<std::string, std::vector<OptionDescption>>
-    section_opt_map({{"", {}}});
+static std::unordered_map<std::string, std::vector<OptionDescption>> section_opt_map({{"", {}}});
 
 // To make the section output in the FIFO order
 // since the section_opt_map is unordered(hash table)
-static std::vector<std::string const *> sections = {
-    &section_opt_map.begin()->first};
+static std::vector<std::string const *> sections = {&section_opt_map.begin()->first};
 
 /* Store the non-options arguments */
 /* static std::vector<char const *> non_opt_args; */
 
 /* Utility function */
 static void AddOption_impl(OptDesc &&desc, OptionParameter opt_param);
-static void GenOptions(std::vector<OptionDescption> const &opts,
-                       int long_opt_param_align_len, int short_opt_align_len);
+static void GenOptions(
+    std::vector<OptionDescption> const &opts,
+    int                                 long_opt_param_align_len,
+    int                                 short_opt_align_len
+);
 static void GenHelp();
-static bool StrInt(int *param, char const *arg, std::string const &cur_option,
-                   std::string *errmsg);
-static bool StrDouble(double *param, char const *arg,
-                      std::string const &cur_option, std::string *errmsg);
-static bool SetParameter(OptionParameter *param, char const *arg,
-                         unsigned int cur_arg_num,
-                         std::string const &cur_option, std::string *errmsg);
-static bool CheckArgumentIsLess(OptionParameter *cur_param,
-                                std::string const &cur_option,
-                                unsigned int cur_arg_num, std::string *errmsg);
-static bool CheckArgumentIsGreater(OptionParameter *cur_param,
-                                   std::string const &cur_option,
-                                   unsigned int cur_arg_num,
-                                   std::string *errmsg);
+static bool StrInt(int *param, char const *arg, std::string const &cur_option, std::string *errmsg);
+static bool StrDouble(
+    double            *param,
+    char const        *arg,
+    std::string const &cur_option,
+    std::string       *errmsg
+);
+static bool SetParameter(
+    OptionParameter   *param,
+    char const        *arg,
+    unsigned int       cur_arg_num,
+    std::string const &cur_option,
+    std::string       *errmsg
+);
+static bool CheckArgumentIsLess(
+    OptionParameter   *cur_param,
+    std::string const &cur_option,
+    unsigned int       cur_arg_num,
+    std::string       *errmsg
+);
+static bool CheckArgumentIsGreater(
+    OptionParameter   *cur_param,
+    std::string const &cur_option,
+    unsigned int       cur_arg_num,
+    std::string       *errmsg
+);
 
 void AddUsage(std::string const &desc)
 {
@@ -156,62 +167,62 @@ void AddOption(OptDesc &&desc, bool *param)
 {
   *param = false;
   OptionParameter opt;
-  opt.type = OT_VOID;
-  opt.param = param;
+  opt.type        = OT_VOID;
+  opt.param       = param;
   desc.param_name = OptType2Str(opt.type);
   AddOption_impl(std::move(desc), opt);
 }
 
-#define DEFINE_ADD_OPTION(_ptype, _type)                                       \
-  void AddOption(OptDesc &&desc, _ptype *param)                                \
-  {                                                                            \
-    OptionParameter opt;                                                       \
-    opt.type = _type;                                                          \
-    opt.param = param;                                                         \
-    desc.param_name.reserve(2 + OptType2Str(opt.type).size());                 \
-    desc.param_name = '<';                                                     \
-    desc.param_name += OptType2Str(opt.type);                                  \
-    desc.param_name += '>';                                                    \
-    AddOption_impl(std::move(desc), opt);                                      \
+#define DEFINE_ADD_OPTION(_ptype, _type)                                                           \
+  void AddOption(OptDesc &&desc, _ptype *param)                                                    \
+  {                                                                                                \
+    OptionParameter opt;                                                                           \
+    opt.type  = _type;                                                                             \
+    opt.param = param;                                                                             \
+    desc.param_name.reserve(2 + OptType2Str(opt.type).size());                                     \
+    desc.param_name = '<';                                                                         \
+    desc.param_name += OptType2Str(opt.type);                                                      \
+    desc.param_name += '>';                                                                        \
+    AddOption_impl(std::move(desc), opt);                                                          \
   }
 
 DEFINE_ADD_OPTION(std::string, OT_STR)
 DEFINE_ADD_OPTION(int, OT_INT)
 DEFINE_ADD_OPTION(double, OT_DOUBLE)
 
-#define DEFINE_ADD_OPTION_MULTI(_ptype, _type)                                 \
-  void AddOption(OptDesc &&desc, _ptype *param)                                \
-  {                                                                            \
-    OptionParameter opt;                                                       \
-    opt.type = _type;                                                          \
-    opt.param = param;                                                         \
-    desc.param_name.reserve(4 + OptType2Str(opt.type).size());                 \
-    desc.param_name = "<n ";                                                   \
-    desc.param_name += OptType2Str(opt.type);                                  \
-    desc.param_name += '>';                                                    \
-    AddOption_impl(std::move(desc), opt);                                      \
+#define DEFINE_ADD_OPTION_MULTI(_ptype, _type)                                                     \
+  void AddOption(OptDesc &&desc, _ptype *param)                                                    \
+  {                                                                                                \
+    OptionParameter opt;                                                                           \
+    opt.type  = _type;                                                                             \
+    opt.param = param;                                                                             \
+    desc.param_name.reserve(4 + OptType2Str(opt.type).size());                                     \
+    desc.param_name = "<n ";                                                                       \
+    desc.param_name += OptType2Str(opt.type);                                                      \
+    desc.param_name += '>';                                                                        \
+    AddOption_impl(std::move(desc), opt);                                                          \
   }
 
 DEFINE_ADD_OPTION_MULTI(std::vector<std::string>, OT_MSTR)
 DEFINE_ADD_OPTION_MULTI(std::vector<int>, OT_MINT)
 DEFINE_ADD_OPTION_MULTI(std::vector<double>, OT_MDOUBLE)
 
-#define DEFINE_ADD_OPTION_FIXED(_ptype, _type)                                 \
-  void AddOption(OptDesc &&desc, _ptype *param, unsigned int n)                \
-  {                                                                            \
-    OptionParameter opt;                                                       \
-    opt.type = _type;                                                          \
-    opt.size = n;                                                              \
-    opt.param = param;                                                         \
-    auto numeric = std::to_string(opt.size);                                   \
-    /* <numeric param-str> */                                                  \
-    desc.param_name.reserve(numeric.size() + 3);                               \
-    desc.param_name = '<';                                                     \
-    desc.param_name += numeric;                                                \
-    desc.param_name += ' ';                                                    \
-    desc.param_name += OptType2Str(opt.type);                                  \
-    desc.param_name += '>';                                                    \
-    AddOption_impl(std::move(desc), opt);                                      \
+#define DEFINE_ADD_OPTION_FIXED(_ptype, _type)                                                     \
+  void AddOption(OptDesc &&desc, _ptype *param, unsigned int n)                                    \
+  {                                                                                                \
+    OptionParameter opt;                                                                           \
+    opt.type     = _type;                                                                          \
+    opt.size     = n;                                                                              \
+    opt.param    = param;                                                                          \
+    auto numeric = std::to_string(opt.size);                                                       \
+    /* <numeric param-str> */                                                                      \
+    desc.param_name.reserve(numeric.size() + 3);                                                   \
+    desc.param_name = '<';                                                                         \
+    desc.param_name += numeric;                                                                    \
+    desc.param_name += ' ';                                                                        \
+    desc.param_name += OptType2Str(opt.type);                                                      \
+    desc.param_name += '>';                                                                        \
+    AddOption_impl(std::move(desc), opt);                                                          \
   }
 
 DEFINE_ADD_OPTION_FIXED(std::string, OT_FSTR)
@@ -221,44 +232,43 @@ DEFINE_ADD_OPTION_FIXED(double, OT_FDOUBLE)
 void AddOption(OptDesc &&desc, OptionFunction fn, unsigned int n)
 {
   OptionParameter opt;
-  opt.type = OT_USR;
-  opt.size = n;
+  opt.type   = OT_USR;
+  opt.size   = n;
   opt.opt_fn = std::move(fn);
   AddOption_impl(std::move(desc), std::move(opt));
 }
 
-#define CHECK_OPTION_EXISTS(iter, _map)                                        \
-  auto iter = _map.find(cur_option);                                           \
-  if (iter == _map.end()) {                                                    \
-    *errmsg = "Option: ";                                                      \
-    *errmsg += cur_option;                                                     \
-    *errmsg += " is not an valid option. Please type --help to check all "     \
-               "allowed options";                                              \
-    return false;                                                              \
+#define CHECK_OPTION_EXISTS(iter, _map)                                                            \
+  auto iter = _map.find(cur_option);                                                               \
+  if (iter == _map.end()) {                                                                        \
+    *errmsg = "Option: ";                                                                          \
+    *errmsg += cur_option;                                                                         \
+    *errmsg += " is not an valid option. Please type --help to check all "                         \
+               "allowed options";                                                                  \
+    return false;                                                                                  \
   }
 
 bool Parse(char **argv_begin, char **argv_end, std::string *errmsg)
 {
   OptionParameter *cur_param = nullptr;
-  std::string cur_option;
-  unsigned int cur_arg_num = 0;
+  std::string      cur_option;
+  unsigned int     cur_arg_num = 0;
   errmsg->clear();
   AddOption({"", "help", "Display the help message"}, &has_help);
 
   for (; argv_begin != argv_end; ++argv_begin) {
-    char const *arg = *argv_begin;
+    char const  *arg = *argv_begin;
     const size_t len = ::strlen(arg);
     assert(len != 0);
 
-    bool is_long_opt = (arg[0] == '-' && arg[1] == '-') && len > 2;
+    bool is_long_opt  = (arg[0] == '-' && arg[1] == '-') && len > 2;
     bool is_short_opt = (arg[0] == '-') && len > 1;
 
     // Check if is a option
     // short option or long option
     // PS: ---+ shouldn't think as a option.
     if (is_long_opt || is_short_opt) {
-      if (CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg))
-        return false;
+      if (CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg)) return false;
 
       cur_arg_num = 0;
 
@@ -311,8 +321,7 @@ bool Parse(char **argv_begin, char **argv_end, std::string *errmsg)
     }
   }
 
-  if (CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg))
-    return false;
+  if (CheckArgumentIsLess(cur_param, cur_option, cur_arg_num, errmsg)) return false;
 
   return true;
 }
@@ -373,18 +382,18 @@ static inline void GenHelp()
   help = usage;
   help += description;
 
-  int short_opt_align_len = 0;
+  int short_opt_align_len      = 0;
   int long_opt_param_align_len = 0;
 
   if (!sections.empty()) {
     for (auto const &section_opt : section_opt_map) {
       auto &options = section_opt.second;
       for (auto const &option : options) {
-        long_opt_param_align_len =
-            TAKINA_MAX(long_opt_param_align_len,
-                       int(option.param_name.size() + option.lopt.size()));
-        short_opt_align_len =
-            TAKINA_MAX(short_opt_align_len, (int)option.sopt.size());
+        long_opt_param_align_len = TAKINA_MAX(
+            long_opt_param_align_len,
+            int(option.param_name.size() + option.lopt.size())
+        );
+        short_opt_align_len = TAKINA_MAX(short_opt_align_len, (int)option.sopt.size());
       }
     }
   }
@@ -402,10 +411,13 @@ static inline void GenHelp()
   help.pop_back();
 }
 
-void GenOptions(std::vector<OptionDescption> const &opts,
-                int long_opt_param_align_len, int short_opt_align_len)
+void GenOptions(
+    std::vector<OptionDescption> const &opts,
+    int                                 long_opt_param_align_len,
+    int                                 short_opt_align_len
+)
 {
-  char buf[65535];
+  char        buf[65535];
   std::string lopt_param;
   lopt_param.reserve(long_opt_param_align_len + 1);
   // Format:
@@ -421,13 +433,20 @@ void GenOptions(std::vector<OptionDescption> const &opts,
     } else {
       format = "-%-*s,";
     }
-    format += " --%-*s  %s\n";
+    format     += " --%-*s  %s\n";
     lopt_param = opt.lopt;
     lopt_param += " ";
     lopt_param += opt.param_name;
-    ::snprintf(buf, sizeof buf, format.c_str(), short_opt_align_len,
-               opt.sopt.c_str(), long_opt_param_align_len + 1,
-               lopt_param.c_str(), opt.desc.c_str());
+    ::snprintf(
+        buf,
+        sizeof buf,
+        format.c_str(),
+        short_opt_align_len,
+        opt.sopt.c_str(),
+        long_opt_param_align_len + 1,
+        lopt_param.c_str(),
+        opt.desc.c_str()
+    );
     help += buf;
   }
 }
@@ -444,8 +463,7 @@ inline void AddOption_impl(OptDesc &&desc, OptionParameter opt_param)
 
   if (!desc.sopt.empty()) {
     if (!short_param_map.insert({(desc.sopt), &res.first->second}).second) {
-      ::fprintf(stderr, "The short option: %s does exists\n",
-                desc.sopt.c_str());
+      ::fprintf(stderr, "The short option: %s does exists\n", desc.sopt.c_str());
       return;
     }
   }
@@ -454,10 +472,14 @@ inline void AddOption_impl(OptDesc &&desc, OptionParameter opt_param)
   section_opt_map[*sections.back()].push_back(std::move(desc));
 }
 
-static inline bool StrInt(int *param, char const *arg,
-                          std::string const &cur_option, std::string *errmsg)
+static inline bool StrInt(
+    int               *param,
+    char const        *arg,
+    std::string const &cur_option,
+    std::string       *errmsg
+)
 {
-  char *end = nullptr;
+  char      *end = nullptr;
   const auto res = ::strtol(arg, &end, 10);
   if (res == 0 && end == arg) {
     *errmsg = "Option: ";
@@ -470,27 +492,33 @@ static inline bool StrInt(int *param, char const *arg,
   return true;
 }
 
-static inline bool StrDouble(double *param, char const *arg,
-                             std::string const &cur_option, std::string *errmsg)
+static inline bool StrDouble(
+    double            *param,
+    char const        *arg,
+    std::string const &cur_option,
+    std::string       *errmsg
+)
 {
-  char *end = nullptr;
+  char      *end = nullptr;
   const auto res = ::strtod(arg, &end);
   if (res == 0 && end == arg) {
     *errmsg = "Option: ";
     *errmsg += cur_option;
     *errmsg += '\n';
-    *errmsg +=
-        "Syntax error: this is not a valid float-pointing number argument";
+    *errmsg += "Syntax error: this is not a valid float-pointing number argument";
     return false;
   }
   *param = res;
   return true;
 }
 
-static inline bool SetParameter(OptionParameter *param, char const *arg,
-                                unsigned int cur_arg_num,
-                                std::string const &cur_option,
-                                std::string *errmsg)
+static inline bool SetParameter(
+    OptionParameter   *param,
+    char const        *arg,
+    unsigned int       cur_arg_num,
+    std::string const &cur_option,
+    std::string       *errmsg
+)
 {
   switch (param->type) {
     case OT_STR:
@@ -521,29 +549,29 @@ static inline bool SetParameter(OptionParameter *param, char const *arg,
       ((std::vector<double> *)(param->param))->emplace_back(res);
     } break;
 
-#define FIXED_ARGUMENTS_ERR_ROUTINE                                            \
-  if (cur_arg_num > param->size) {                                             \
-    *errmsg = "Option: ";                                                      \
-    *errmsg += cur_option;                                                     \
-    *errmsg += ", The number of arguments more than required";                 \
-    return false;                                                              \
+#define FIXED_ARGUMENTS_ERR_ROUTINE                                                                \
+  if (cur_arg_num > param->size) {                                                                 \
+    *errmsg = "Option: ";                                                                          \
+    *errmsg += cur_option;                                                                         \
+    *errmsg += ", The number of arguments more than required";                                     \
+    return false;                                                                                  \
   }
 
     case OT_FSTR: {
       FIXED_ARGUMENTS_ERR_ROUTINE
-      auto arr = (std::string *)(param->param);
+      auto arr             = (std::string *)(param->param);
       arr[cur_arg_num - 1] = arg;
     } break;
     case OT_FINT: {
       FIXED_ARGUMENTS_ERR_ROUTINE
       auto arr = (int *)(param->param);
-      int res;
+      int  res;
       if (!StrInt(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num - 1] = res;
     } break;
     case OT_FDOUBLE: {
       FIXED_ARGUMENTS_ERR_ROUTINE
-      auto arr = (double *)(param->param);
+      auto   arr = (double *)(param->param);
       double res;
       if (!StrDouble(&res, arg, cur_option, errmsg)) return false;
       arr[cur_arg_num - 1] = res;
@@ -560,10 +588,12 @@ static inline bool SetParameter(OptionParameter *param, char const *arg,
   return true;
 }
 
-static inline bool CheckArgumentIsLess(OptionParameter *cur_param,
-                                       std::string const &cur_option,
-                                       unsigned int cur_arg_num,
-                                       std::string *errmsg)
+static inline bool CheckArgumentIsLess(
+    OptionParameter   *cur_param,
+    std::string const &cur_option,
+    unsigned int       cur_arg_num,
+    std::string       *errmsg
+)
 {
   bool condition = false;
   if (cur_param) {
@@ -594,10 +624,12 @@ static inline bool CheckArgumentIsLess(OptionParameter *cur_param,
   return false;
 }
 
-static inline bool CheckArgumentIsGreater(OptionParameter *cur_param,
-                                          std::string const &cur_option,
-                                          unsigned int cur_arg_num,
-                                          std::string *errmsg)
+static inline bool CheckArgumentIsGreater(
+    OptionParameter   *cur_param,
+    std::string const &cur_option,
+    unsigned int       cur_arg_num,
+    std::string       *errmsg
+)
 {
   unsigned int size = 0;
   assert(cur_param);
@@ -647,14 +679,19 @@ std::vector<char const *> &GetNonOptionArguments()
 }
 
 std::string opt_strings[OT_NUM] = {
-    "string",        "strings",  "strings",      "integer",
-    "integers",      "integers", "float number", "float numbers",
-    "float numbers", "",         "user",
+    "string",
+    "strings",
+    "strings",
+    "integer",
+    "integers",
+    "integers",
+    "float number",
+    "float numbers",
+    "float numbers",
+    "",
+    "user",
 };
 
-static std::string const &OptType2Str(OptType t) noexcept
-{
-  return opt_strings[(int)t];
-}
+static std::string const &OptType2Str(OptType t) noexcept { return opt_strings[(int)t]; }
 
 } // namespace takina
